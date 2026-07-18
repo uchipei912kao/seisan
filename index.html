@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>仕入れ精算</title>
+<link rel="manifest" href="manifest.json">
+<style>
+  :root {
+    --bg: #f2f4f8; --card: #ffffff; --ink: #1a2744; --sub: #7a8299;
+    --accent: #ff7a1a; --ok: #16a34a; --ng: #dc2626;
+    --choi: #ff7a1a; --morio: #16a34a; --koma: #2563eb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body { font-family: -apple-system, "Hiragino Kaku Gothic ProN", sans-serif; background: var(--bg); color: var(--ink); padding-bottom: 90px; }
+
+  header { background: var(--ink); color: #fff; padding: 14px 16px 10px; position: sticky; top: 0; z-index: 10; }
+  .h-top { display: flex; justify-content: space-between; align-items: center; }
+  .h-title { font-size: 17px; font-weight: 700; }
+  .h-me { font-size: 12px; background: rgba(255,255,255,.15); border: none; color: #fff; padding: 6px 10px; border-radius: 14px; }
+  .datenav { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 8px; }
+  .datenav button { background: rgba(255,255,255,.15); border: none; color: #fff; font-size: 16px; width: 34px; height: 34px; border-radius: 50%; }
+  .datenav .d { font-size: 16px; font-weight: 700; min-width: 130px; text-align: center; }
+  .today-link { font-size: 11px; color: #ffd9b3; background: none; border: none; text-decoration: underline; }
+
+  main { padding: 12px; max-width: 560px; margin: 0 auto; }
+  .card { background: var(--card); border-radius: 14px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 4px rgba(16,24,40,.06); }
+  .card h2 { font-size: 13px; color: var(--sub); margin-bottom: 10px; letter-spacing: .05em; }
+
+  .p-choi { color: var(--choi); } .p-morio { color: var(--morio); } .p-koma { color: var(--koma); }
+  .dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+  .dot.choi { background: var(--choi); } .dot.morio { background: var(--morio); } .dot.koma { background: var(--koma); }
+
+  .payrow { display: flex; align-items: center; padding: 9px 2px; border-bottom: 1px solid #eef0f4; font-size: 15px; }
+  .payrow .store { flex: 1; margin-left: 2px; }
+  .payrow .amt { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .payrow .del { border: none; background: none; color: #c3c9d6; font-size: 17px; padding: 4px 2px 4px 12px; }
+  .empty { color: var(--sub); font-size: 13px; text-align: center; padding: 10px 0; }
+
+  .addbtn { width: 100%; margin-top: 10px; padding: 13px; font-size: 15px; font-weight: 700; color: #fff; background: var(--accent); border: none; border-radius: 10px; }
+
+  .takegrid { display: flex; gap: 8px; }
+  .takebox { flex: 1; text-align: center; background: #f7f8fb; border-radius: 10px; padding: 10px 4px; }
+  .takebox .nm { font-size: 12px; font-weight: 700; }
+  .takebox input { width: 100%; margin-top: 6px; font-size: 17px; font-weight: 700; text-align: center; border: 1px solid #dfe3ec; border-radius: 8px; padding: 8px 2px; background: #fff; }
+
+  .result-line { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 19px; font-weight: 800; padding: 10px 0; }
+  .result-line .arrow { color: var(--sub); font-size: 15px; }
+  .result-line .yen { font-variant-numeric: tabular-nums; }
+  .totals { display: flex; justify-content: space-around; border-top: 1px solid #eef0f4; margin-top: 8px; padding-top: 10px; font-size: 12px; color: var(--sub); }
+  .totals b { display: block; font-size: 15px; color: var(--ink); margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .diff-ng { color: var(--ng) !important; }
+  .allok { text-align: center; font-size: 15px; color: var(--ok); font-weight: 700; padding: 8px 0; }
+
+  .hist-day { display: flex; justify-content: space-between; align-items: center; padding: 12px 4px; border-bottom: 1px solid #eef0f4; font-size: 14px; }
+  .hist-day .stores { color: var(--sub); font-size: 12px; margin-top: 2px; max-width: 210px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* モーダル */
+  .modal-bg { position: fixed; inset: 0; background: rgba(16,24,40,.5); display: none; align-items: flex-end; z-index: 50; }
+  .modal-bg.show { display: flex; }
+  .modal { background: #fff; width: 100%; border-radius: 18px 18px 0 0; padding: 20px 16px 30px; }
+  .modal h3 { font-size: 16px; margin-bottom: 14px; }
+  .modal label { display: block; font-size: 12px; color: var(--sub); margin: 12px 0 4px; }
+  .modal input { width: 100%; font-size: 17px; padding: 12px; border: 1px solid #dfe3ec; border-radius: 10px; }
+  .who-btns { display: flex; gap: 10px; }
+  .who-btns button { flex: 1; padding: 16px 4px; font-size: 16px; font-weight: 700; border: 2px solid #dfe3ec; background: #fff; border-radius: 12px; }
+  .who-btns button.sel { border-color: var(--ink); background: var(--ink); color: #fff; }
+  .m-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .m-actions .cancel { flex: 1; padding: 13px; font-size: 15px; border: none; background: #eef0f4; border-radius: 10px; }
+  .m-actions .save { flex: 2; padding: 13px; font-size: 15px; font-weight: 700; border: none; background: var(--accent); color: #fff; border-radius: 10px; }
+
+  .tabbar { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e3e7ef; display: flex; z-index: 20; padding-bottom: env(safe-area-inset-bottom); }
+  .tabbar button { flex: 1; padding: 10px 0 8px; border: none; background: none; font-size: 11px; color: var(--sub); }
+  .tabbar button.on { color: var(--accent); font-weight: 700; }
+  .tabbar .ico { display: block; font-size: 20px; margin-bottom: 2px; }
+  .sync { position: fixed; top: 108px; right: 10px; font-size: 10px; color: var(--sub); z-index: 5; }
+  .offline-note { background: #fff7ed; color: #9a3412; font-size: 12px; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: none; }
+</style>
+</head>
+<body>
+<header>
+  <div class="h-top">
+    <div class="h-title">🧮 仕入れ精算</div>
+    <button class="h-me" id="meBtn">わたし: −</button>
+  </div>
+  <div class="datenav">
+    <button id="prevDay">◀</button>
+    <div class="d" id="dayLabel">…</div>
+    <button id="nextDay">▶</button>
+  </div>
+  <div style="text-align:center"><button class="today-link" id="todayBtn">今日へ戻る</button></div>
+</header>
+
+<main>
+  <div class="offline-note" id="setupNote">⚠️ サーバーに接続できません（休止中か未設定）。ちょいに「精算アプリつながらない」と伝えてください。</div>
+
+  <div id="pageToday">
+    <div class="card">
+      <h2>💸 支払い（店ごとに記録）</h2>
+      <div id="payList"></div>
+      <button class="addbtn" id="addPay">＋ 支払いを追加</button>
+    </div>
+
+    <div class="card">
+      <h2>📦 自分の仕入額（分けたあとの取り分）</h2>
+      <div class="takegrid" id="takeGrid"></div>
+    </div>
+
+    <div class="card">
+      <h2>🤝 精算結果（誰が誰に払う）</h2>
+      <div id="resultBox"></div>
+    </div>
+  </div>
+
+  <div id="pageHist" style="display:none">
+    <div class="card">
+      <h2>📅 履歴（タップで表示）</h2>
+      <div id="histList"><div class="empty">読み込み中…</div></div>
+    </div>
+  </div>
+</main>
+
+<div class="sync" id="syncInfo"></div>
+
+<nav class="tabbar">
+  <button id="tabToday" class="on"><span class="ico">🧮</span>今日の精算</button>
+  <button id="tabHist"><span class="ico">📅</span>履歴</button>
+</nav>
+
+<!-- わたし選択 -->
+<div class="modal-bg" id="whoModal">
+  <div class="modal">
+    <h3>あなたは誰？（この端末に記憶されます）</h3>
+    <div class="who-btns" id="whoBtns">
+      <button data-p="ちょい">ちょい</button>
+      <button data-p="もりお">もりお</button>
+      <button data-p="こま">こま</button>
+    </div>
+  </div>
+</div>
+
+<!-- 支払い追加 -->
+<div class="modal-bg" id="payModal">
+  <div class="modal">
+    <h3>支払いを追加（<span id="payWho"></span>）</h3>
+    <label>店名</label>
+    <input id="payStore" list="storeList" placeholder="例：ヤマダ電機">
+    <datalist id="storeList"></datalist>
+    <label>支払った金額（円）</label>
+    <input id="payAmt" type="tel" inputmode="numeric" placeholder="例：52800">
+    <div class="m-actions">
+      <button class="cancel" id="payCancel">やめる</button>
+      <button class="save" id="paySave">追加する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://xuztjtylgizuphvpfrld.supabase.co";
+const SUPABASE_KEY = "sb_publishable__MyLkume5uG60Vlak2QE-Q_cGJ4W47X";
+const TABLE = "seisan_entries";
+const PEOPLE = ["ちょい", "もりお", "こま"];
+const PCLASS = { "ちょい": "choi", "もりお": "morio", "こま": "koma" };
+
+let me = localStorage.getItem("seisan_me") || "";
+let day = jstToday();
+let rows = [];          // その日の全エントリ
+let takeTimers = {};
+
+function jstToday() {
+  const d = new Date(Date.now() + 9 * 3600 * 1000);
+  return d.toISOString().slice(0, 10);
+}
+function fmtDay(s) {
+  const [y, m, d] = s.split("-").map(Number);
+  const w = "日月火水木金土"[new Date(y, m - 1, d).getDay()];
+  return `${m}/${d}（${w}）` + (s === jstToday() ? "・今日" : "");
+}
+function yen(n) { return "¥" + Number(n).toLocaleString(); }
+const $ = id => document.getElementById(id);
+
+/* ---------- API ---------- */
+async function api(path, opt = {}) {
+  opt.headers = Object.assign({
+    "apikey": SUPABASE_KEY,
+    "Authorization": "Bearer " + SUPABASE_KEY,
+    "Content-Type": "application/json",
+    "Prefer": "return=representation"
+  }, opt.headers || {});
+  let r;
+  try {
+    r = await fetch(SUPABASE_URL + "/rest/v1/" + path, opt);
+  } catch (e) {
+    $("setupNote").style.display = "block";
+    return null;
+  }
+  if (r.status === 404 || r.status === 401) { $("setupNote").style.display = "block"; return null; }
+  $("setupNote").style.display = "none";
+  if (opt.method === "DELETE") return true;
+  return r.json();
+}
+async function loadDay() {
+  const d = await api(`${TABLE}?day=eq.${day}&order=created_at`);
+  if (Array.isArray(d)) { rows = d; render(); }
+  $("syncInfo").textContent = "同期 " + new Date().toLocaleTimeString("ja-JP", {hour:"2-digit",minute:"2-digit",second:"2-digit"});
+}
+async function addRow(row) {
+  const d = await api(TABLE, { method: "POST", body: JSON.stringify(row) });
+  if (Array.isArray(d)) rows.push(d[0]);
+  render();
+  loadDay();
+}
+async function delRow(id) {
+  rows = rows.filter(r => r.id !== id);
+  render();
+  await api(`${TABLE}?id=eq.${id}`, { method: "DELETE" });
+  loadDay();
+}
+async function setTake(person, amount) {
+  const ex = rows.find(r => r.kind === "take" && r.person === person);
+  if (ex) {
+    ex.amount = amount;
+    render();
+    await api(`${TABLE}?id=eq.${ex.id}`, { method: "PATCH", body: JSON.stringify({ amount }) });
+  } else {
+    await addRow({ day, person, kind: "take", store: "", amount });
+  }
+  loadDay();
+}
+
+/* ---------- 清算計算 ---------- */
+function settle(pays, takes) {
+  // balance = 支払 - 取り分。プラス=受け取る側
+  const bal = {};
+  PEOPLE.forEach(p => { bal[p] = (pays[p] || 0) - (takes[p] || 0); });
+  const cred = PEOPLE.filter(p => bal[p] > 0).map(p => [p, bal[p]]).sort((a, b) => b[1] - a[1]);
+  const debt = PEOPLE.filter(p => bal[p] < 0).map(p => [p, -bal[p]]).sort((a, b) => b[1] - a[1]);
+  const moves = [];
+  let ci = 0, di = 0;
+  while (ci < cred.length && di < debt.length) {
+    const amt = Math.min(cred[ci][1], debt[di][1]);
+    if (amt > 0) moves.push([debt[di][0], cred[ci][0], amt]);
+    cred[ci][1] -= amt; debt[di][1] -= amt;
+    if (cred[ci][1] === 0) ci++;
+    if (debt[di][1] === 0) di++;
+  }
+  return moves;
+}
+
+/* ---------- 描画 ---------- */
+function render() {
+  $("dayLabel").textContent = fmtDay(day);
+  $("meBtn").textContent = "わたし: " + (me || "未設定");
+
+  // 支払いリスト
+  const pays = rows.filter(r => r.kind === "pay");
+  const pl = $("payList");
+  pl.innerHTML = "";
+  if (!pays.length) pl.innerHTML = '<div class="empty">まだ支払いがありません</div>';
+  pays.forEach(r => {
+    const div = document.createElement("div");
+    div.className = "payrow";
+    div.innerHTML = `<span class="dot ${PCLASS[r.person] || ''}"></span>
+      <span class="p-${PCLASS[r.person] || ''}" style="font-weight:700">${esc(r.person)}</span>
+      <span class="store">${esc(r.store || "（店名なし）")}</span>
+      <span class="amt">${yen(r.amount)}</span>
+      <button class="del" data-id="${r.id}">✕</button>`;
+    pl.appendChild(div);
+  });
+  pl.querySelectorAll(".del").forEach(b => b.onclick = () => {
+    if (confirm("この支払いを削除する？")) delRow(Number(b.dataset.id) || b.dataset.id);
+  });
+
+  // 店名候補
+  $("storeList").innerHTML = [...new Set(pays.map(r => r.store).filter(Boolean))]
+    .map(s => `<option value="${esc(s)}">`).join("");
+
+  // 取り分
+  const takes = {};
+  rows.filter(r => r.kind === "take").forEach(r => { takes[r.person] = r.amount; });
+  const tg = $("takeGrid");
+  tg.innerHTML = "";
+  PEOPLE.forEach(p => {
+    const box = document.createElement("div");
+    box.className = "takebox";
+    box.innerHTML = `<div class="nm p-${PCLASS[p]}">${p}</div>
+      <input type="tel" inputmode="numeric" placeholder="0" value="${takes[p] ?? ""}" data-p="${p}">`;
+    tg.appendChild(box);
+  });
+  tg.querySelectorAll("input").forEach(inp => {
+    inp.onchange = () => {
+      const v = parseInt(String(inp.value).replace(/[^\d]/g, ""), 10) || 0;
+      clearTimeout(takeTimers[inp.dataset.p]);
+      takeTimers[inp.dataset.p] = setTimeout(() => setTake(inp.dataset.p, v), 300);
+    };
+  });
+
+  // 清算結果
+  const paySum = {}, takeSum = {};
+  PEOPLE.forEach(p => {
+    paySum[p] = pays.filter(r => r.person === p).reduce((s, r) => s + r.amount, 0);
+    takeSum[p] = takes[p] || 0;
+  });
+  const totalPay = PEOPLE.reduce((s, p) => s + paySum[p], 0);
+  const totalTake = PEOPLE.reduce((s, p) => s + takeSum[p], 0);
+  const diff = totalPay - totalTake;
+  const rb = $("resultBox");
+  rb.innerHTML = "";
+  if (totalPay === 0 && totalTake === 0) {
+    rb.innerHTML = '<div class="empty">支払いと仕入額を入れると、ここに結果が出ます</div>';
+  } else {
+    const moves = settle(paySum, takeSum);
+    if (!moves.length) rb.innerHTML = '<div class="allok">✅ 精算なし（全員ぴったり）</div>';
+    moves.forEach(([from, to, amt]) => {
+      const div = document.createElement("div");
+      div.className = "result-line";
+      div.innerHTML = `<span class="p-${PCLASS[from]}">${from}</span>
+        <span class="arrow">▶▶</span>
+        <span class="p-${PCLASS[to]}">${to}</span>
+        <span class="yen">${yen(amt)}</span>`;
+      rb.appendChild(div);
+    });
+    const t = document.createElement("div");
+    t.className = "totals";
+    t.innerHTML = `<div>支払合計<b>${yen(totalPay)}</b></div>
+      <div>仕入合計<b>${yen(totalTake)}</b></div>
+      <div>差額<b class="${diff !== 0 ? "diff-ng" : ""}">${diff === 0 ? "±0 ✓" : yen(diff)}</b></div>`;
+    rb.appendChild(t);
+    if (diff !== 0) {
+      const w = document.createElement("div");
+      w.style.cssText = "color:var(--ng);font-size:12px;text-align:center;margin-top:6px";
+      w.textContent = "⚠️ 支払合計と仕入合計が合っていません（入力漏れ？）";
+      rb.appendChild(w);
+    }
+  }
+}
+function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+
+/* ---------- 履歴 ---------- */
+async function loadHist() {
+  const d = await api(`${TABLE}?select=day,person,kind,store,amount&order=day.desc&limit=1000`);
+  const hl = $("histList");
+  if (!Array.isArray(d)) { hl.innerHTML = '<div class="empty">読み込めませんでした</div>'; return; }
+  const byDay = {};
+  d.forEach(r => { (byDay[r.day] = byDay[r.day] || []).push(r); });
+  const days = Object.keys(byDay).sort().reverse();
+  hl.innerHTML = days.length ? "" : '<div class="empty">まだ記録がありません</div>';
+  days.forEach(dy => {
+    const rs = byDay[dy];
+    const total = rs.filter(r => r.kind === "pay").reduce((s, r) => s + r.amount, 0);
+    const stores = [...new Set(rs.filter(r => r.kind === "pay").map(r => r.store).filter(Boolean))].join("・");
+    const div = document.createElement("div");
+    div.className = "hist-day";
+    div.innerHTML = `<div><div style="font-weight:700">${fmtDay(dy)}</div>
+      <div class="stores">${esc(stores || "店名なし")}</div></div>
+      <div style="font-weight:800">${yen(total)}</div>`;
+    div.onclick = () => { day = dy; showTab("today"); loadDay(); };
+    hl.appendChild(div);
+  });
+}
+
+/* ---------- タブ・ナビ ---------- */
+function showTab(t) {
+  $("pageToday").style.display = t === "today" ? "" : "none";
+  $("pageHist").style.display = t === "hist" ? "" : "none";
+  $("tabToday").classList.toggle("on", t === "today");
+  $("tabHist").classList.toggle("on", t === "hist");
+  if (t === "hist") loadHist();
+}
+$("tabToday").onclick = () => showTab("today");
+$("tabHist").onclick = () => showTab("hist");
+$("prevDay").onclick = () => { day = shiftDay(day, -1); loadDay(); render(); };
+$("nextDay").onclick = () => { day = shiftDay(day, 1); loadDay(); render(); };
+$("todayBtn").onclick = () => { day = jstToday(); loadDay(); render(); };
+function shiftDay(s, n) {
+  const d = new Date(s + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
+/* ---------- わたし選択 ---------- */
+function askWho() { $("whoModal").classList.add("show"); }
+$("meBtn").onclick = askWho;
+$("whoBtns").querySelectorAll("button").forEach(b => {
+  b.onclick = () => {
+    me = b.dataset.p;
+    localStorage.setItem("seisan_me", me);
+    $("whoModal").classList.remove("show");
+    render();
+  };
+});
+
+/* ---------- 支払い追加 ---------- */
+$("addPay").onclick = () => {
+  if (!me) { askWho(); return; }
+  $("payWho").textContent = me;
+  $("payStore").value = "";
+  $("payAmt").value = "";
+  $("payModal").classList.add("show");
+  setTimeout(() => $("payStore").focus(), 100);
+};
+$("payCancel").onclick = () => $("payModal").classList.remove("show");
+$("paySave").onclick = () => {
+  const amt = parseInt(String($("payAmt").value).replace(/[^\d]/g, ""), 10);
+  if (!amt) { alert("金額を入れてください"); return; }
+  addRow({ day, person: me, kind: "pay", store: $("payStore").value.trim(), amount: amt });
+  $("payModal").classList.remove("show");
+};
+
+/* ---------- 起動 ---------- */
+render();
+loadDay();
+if (!me) askWho();
+setInterval(() => { if ($("pageToday").style.display !== "none") loadDay(); }, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,31 @@
+name: Supabase Keep Alive
+
+on:
+  schedule:
+    # 毎日 6:00 JST (21:00 UTC) — Supabase無料枠の自動休止を防ぐ
+    - cron: '0 21 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ping Supabase
+        run: |
+          curl -s -o /dev/null -w "supabase: %{http_code}\n" \
+            "https://xuztjtylgizuphvpfrld.supabase.co/rest/v1/seisan_entries?limit=1" \
+            -H "apikey: sb_publishable__MyLkume5uG60Vlak2QE-Q_cGJ4W47X" \
+            -H "Authorization: Bearer sb_publishable__MyLkume5uG60Vlak2QE-Q_cGJ4W47X" || true
+      - name: Keep workflow alive
+        # 60日コミットが無いとGitHubがcronを止めるため、日付を書いてコミットし続ける
+        run: |
+          date > .keepalive
+          git config user.name "keepalive"
+          git config user.email "actions@github.com"
+          git add .keepalive
+          git commit -m "keepalive [skip ci]" || true
+          git push || true

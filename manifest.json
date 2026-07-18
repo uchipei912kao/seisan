@@ -1,0 +1,8 @@
+{
+  "name": "仕入れ精算",
+  "short_name": "仕入れ精算",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f2f4f8",
+  "theme_color": "#1a2744"
+}
