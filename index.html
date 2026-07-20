@@ -219,14 +219,14 @@ async function delRow(id) {
   loadDay();
 }
 async function setTake(person, amount) {
-  const ex = rows.find(r => r.kind === "take" && r.person === person);
-  if (ex) {
-    ex.amount = amount;
-    render();
-    await api(`${TABLE}?id=eq.${ex.id}`, { method: "PATCH", body: JSON.stringify({ amount }) });
-  } else {
-    await addRow({ day, person, kind: "take", store: "", amount });
-  }
+  // 楽観的更新（画面は即反映）
+  rows = rows.filter(r => !(r.kind === "take" && r.person === person));
+  rows.push({ id: "pending", day, person, kind: "take", store: "", amount });
+  render();
+  // 重複行対策: その人のその日のtakeを全削除してから1本だけ入れ直す
+  // （2台同時入力で行が二重になると「編集が効かない」状態になるため）
+  await api(`${TABLE}?day=eq.${day}&person=eq.${encodeURIComponent(person)}&kind=eq.take`, { method: "DELETE" });
+  await api(TABLE, { method: "POST", body: JSON.stringify({ day, person, kind: "take", store: "", amount }) });
   loadDay();
 }
 
