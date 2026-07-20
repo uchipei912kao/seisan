@@ -316,6 +316,19 @@ function render() {
   rb.innerHTML = "";
   if (totalPay === 0 && totalTake === 0) {
     rb.innerHTML = '<div class="empty">支払いと仕入額を入れると、ここに結果が出ます</div>';
+  } else if (diff !== 0) {
+    // 合計が合わない間は精算結果を出さない（誤って「ぴったり」と表示しない）
+    rb.innerHTML = `<div style="background:#fef2f2;border:2px solid var(--ng);border-radius:10px;padding:14px;text-align:center">
+        <div style="color:var(--ng);font-size:17px;font-weight:800">⚠️ 金額が合っていません</div>
+        <div style="color:var(--ng);font-size:14px;font-weight:700;margin-top:6px">差額 ${yen(Math.abs(diff))}（${diff > 0 ? "仕入額の入力が足りない" : "支払いの入力が足りない"}かも）</div>
+        <div style="color:#7a8299;font-size:12px;margin-top:6px">全員の入力がそろって差額±0になると、ここに精算結果が出ます</div>
+      </div>`;
+    const t0 = document.createElement("div");
+    t0.className = "totals";
+    t0.innerHTML = `<div>支払合計<b>${yen(totalPay)}</b></div>
+      <div>仕入合計<b>${yen(totalTake)}</b></div>
+      <div>差額<b class="diff-ng">${yen(diff)}</b></div>`;
+    rb.appendChild(t0);
   } else {
     const moves = settle(paySum, takeSum);
     if (!moves.length) rb.innerHTML = '<div class="allok">✅ 精算なし（全員ぴったり）</div>';
@@ -334,12 +347,6 @@ function render() {
       <div>仕入合計<b>${yen(totalTake)}</b></div>
       <div>差額<b class="${diff !== 0 ? "diff-ng" : ""}">${diff === 0 ? "±0 ✓" : yen(diff)}</b></div>`;
     rb.appendChild(t);
-    if (diff !== 0) {
-      const w = document.createElement("div");
-      w.style.cssText = "color:var(--ng);font-size:12px;text-align:center;margin-top:6px";
-      w.textContent = "⚠️ 支払合計と仕入合計が合っていません（入力漏れ？）";
-      rb.appendChild(w);
-    }
   }
 }
 function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
