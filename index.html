@@ -281,21 +281,27 @@ function render() {
   const takes = {};
   rows.filter(r => r.kind === "take").forEach(r => { takes[r.person] = r.amount; });
   const tg = $("takeGrid");
-  tg.innerHTML = "";
-  PEOPLE.forEach(p => {
-    const box = document.createElement("div");
-    box.className = "takebox";
-    box.innerHTML = `<div class="nm p-${PCLASS[p]}">${p}</div>
-      <input type="tel" inputmode="numeric" placeholder="0" value="${takes[p] ?? ""}" data-p="${p}">`;
-    tg.appendChild(box);
-  });
-  tg.querySelectorAll("input").forEach(inp => {
-    inp.onchange = () => {
-      const v = parseInt(String(inp.value).replace(/[^\d]/g, ""), 10) || 0;
-      clearTimeout(takeTimers[inp.dataset.p]);
-      takeTimers[inp.dataset.p] = setTimeout(() => setTake(inp.dataset.p, v), 300);
-    };
-  });
+  // 入力中は作り直さない（キーボードが落ちて入力が消えるのを防ぐ）
+  const editingTake = document.activeElement && tg.contains(document.activeElement);
+  if (!editingTake) {
+    tg.innerHTML = "";
+    PEOPLE.forEach(p => {
+      const box = document.createElement("div");
+      box.className = "takebox";
+      box.innerHTML = `<div class="nm p-${PCLASS[p]}">${p}</div>
+        <input type="tel" inputmode="numeric" placeholder="0" value="${takes[p] ?? ""}" data-p="${p}">`;
+      tg.appendChild(box);
+    });
+    tg.querySelectorAll("input").forEach(inp => {
+      const save = (delay) => {
+        const v = parseInt(String(inp.value).replace(/[^\d]/g, ""), 10) || 0;
+        clearTimeout(takeTimers[inp.dataset.p]);
+        takeTimers[inp.dataset.p] = setTimeout(() => setTake(inp.dataset.p, v), delay);
+      };
+      inp.oninput = () => save(800);   // 入力が止まったら自動保存
+      inp.onchange = () => save(100);  // 欄を離れたら即保存
+    });
+  }
 
   // 清算結果
   const paySum = {}, takeSum = {};
@@ -413,7 +419,14 @@ $("paySave").onclick = () => {
 render();
 loadDay();
 if (!me) askWho();
-setInterval(() => { if ($("pageToday").style.display !== "none") loadDay(); }, 5000);
+setInterval(() => {
+  if ($("pageToday").style.display === "none") return;
+  // 入力中・モーダル表示中は同期を止める（入力の邪魔をしない）
+  if ($("payModal").classList.contains("show") || $("whoModal").classList.contains("show")) return;
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === "INPUT" || ae.tagName === "TEXTAREA")) return;
+  loadDay();
+}, 5000);
 </script>
 </body>
 </html>
